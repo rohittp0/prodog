@@ -1,0 +1,17 @@
+Django~=5.2
+djangorestframework~=3.16.0
+#djangorestframework-gis==1.1
+requests~=2.32.3
+python-dotenv~=1.1.0
+django-jazzmin~=3.0.1
+django-filter~=25.1
+django-redis~=5.4.0
+psycopg[Binary]~=3.2.7
+#celery~=5.5.2
+#django-celery-beat~=2.8.0
+#flower~=2.0.1
+django-cors-headers~=4.7.0
+vcrpy~=7.0.0
+drf-pydantic~=2.7.1
+drf-yasg~=1.21.10
+setuptools~=80.1.0

@@ -1,0 +1,67 @@
+name: "Branch Deploy"
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  pull-requests: write
+  deployments: write
+  contents: write
+  checks: read
+  statuses: read
+
+env:
+  STAGING_HOST: ${{ vars.STAGING_HOST }}
+  PROD_HOST: ${{ vars.PROD_HOST }}
+  USERNAME: ${{ vars.DROPLET_USERNAME }}
+
+jobs:
+  deploy:
+    if: ${{ github.event.issue.pull_request }} # only run on pull request comments
+    runs-on: ubuntu-latest
+    steps:
+      # Execute IssueOps branch deployment logic
+      - uses: github/branch-deploy@v9.9.1
+        id: branch-deploy
+        with:
+          trigger: ".deploy"
+          environment: "test" # default environment
+          environment_targets: "test,prod,staging" # comma separated list of environments
+
+      # Checkout your project's repository based on the ref provided by the branch-deploy step
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.branch-deploy.outputs.ref }}
+
+      - name: Create SSH key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/private.key
+          chmod 600 ~/.ssh/private.key
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_KEY }}
+
+      # Deploy to Staging
+      - name: Deploy to Staging
+        if: ${{ steps.branch-deploy.outputs.continue == 'true' && steps.branch-deploy.outputs.environment == 'staging' }}
+        run: |
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/private.key $USER@$HOST "deploy $BRANCH"
+        env:
+          HOST: ${{ env.STAGING_HOST }}
+          USER: ${{ env.USERNAME }}
+          BRANCH: ${{ steps.branch-deploy.outputs.ref }}
+
+      # Deploy to Production
+      - name: Deploy to Production
+        if: ${{ steps.branch-deploy.outputs.continue == 'true' && steps.branch-deploy.outputs.environment == 'prod' }}
+        run: |
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/private.key $USER@$HOST "deploy $BRANCH"
+        env:
+          HOST: ${{ env.PROD_HOST }}
+          USER: ${{ env.USERNAME }}
+          BRANCH: ${{ steps.branch-deploy.outputs.ref }}

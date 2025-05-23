@@ -1,0 +1,128 @@
+services:
+  nginx:
+    image: nocodb/nginx-secure
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - PROXY_HOST=server
+      - PROXY_PORT=8000
+      - SSL_ENABLED=${SSL_ENABLED}
+      - PROXY_DOMAIN=${HOST}
+      - DEBUG=${DEBUG}
+    volumes:
+      - certs:/etc/letsencrypt/
+      - $PWD/default.conf.template:/app/default.conf.template:ro
+      - staticfiles:/var/www/static:ro
+    networks:
+      - main
+    depends_on:
+      - server
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    restart: always
+
+  db:
+    image: postgis/postgis:latest
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - main
+    deploy:
+      placement:
+        constraints:
+          - node.labels.db == true
+
+  redis:
+    image: redis:alpine
+    command: redis-server --maxmemory 700mb --maxmemory-policy allkeys-lru
+    networks:
+      - main
+    deploy:
+      placement:
+        constraints:
+          - node.labels.redis == true
+      resources:
+        limits:
+          memory: 1GB
+
+  server:
+    image: registry.digitalocean.com/lascade/travel-flight:latest
+    environment: &env
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DJANGO_KEY: ${DJANGO_KEY}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL}
+      DEBUG: ${DEBUG}
+      HOST: ${HOST}
+      KAYAK_TOKEN: ${KAYAK_TOKEN}
+      KAYAK_SESSION_ID: ${KAYAK_SESSION_ID}
+      SKY_API_KEY: ${SKY_API_KEY}
+      SKY_API_KEY_BASE_URL: ${SKY_API_KEY_BASE_URL}
+      REDIS_URL: "redis://redis:6379/1"
+      IN_DOCKER: "true"
+    volumes:
+      - $PWD:/usr/src/app
+      - staticfiles:/usr/src/app/staticfiles
+    depends_on:
+      - db
+      - redis
+    networks:
+      - main
+    deploy:
+      rollback_config:
+        failure_action: rollback
+      update_config:
+        order: start-first
+      placement:
+        constraints:
+          - node.role.server == true
+
+  celery:
+    image: registry.digitalocean.com/lascade/travel-flight:latest
+    command: >
+      bash -c "
+      celery -A core worker -l info &
+      celery -A core beat -l info" &
+      celery -A core flower
+    environment: *env
+    volumes:
+      - $PWD:/usr/src/app
+    depends_on:
+      - db
+      - redis
+      - server
+    networks:
+      - main
+    deploy:
+      rollback_config:
+        failure_action: rollback
+      update_config:
+        order: start-first
+      placement:
+        constraints:
+          - node.labels.celery == true
+
+networks:
+  main:
+    driver: overlay
+
+volumes:
+  postgres:
+    driver: local
+  staticfiles:
+    driver: local
+  certs:
+    driver: local

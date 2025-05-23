@@ -1,0 +1,15 @@
+venv/
+.idea/
+.vscode/
+**/.env
+media/
+staticfiles/
+
+*.pickle
+volumes/
+
+**/__pycache__/
+
+.digitalocean_token
+
+google-services.json
