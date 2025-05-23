@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_yasg",
     "corsheaders",
+    "home.apps.HomeConfig"
 
     # Local apps
 ]
