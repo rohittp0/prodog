@@ -23,6 +23,12 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
     date_hierarchy = 'created_at'
     list_per_page = 10
 
+    def get_readonly_fields(self, request, obj=None):
+        if not request.user.is_superuser:
+            return ['status']
+
+        return super().get_readonly_fields(request, obj)
+
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):

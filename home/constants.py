@@ -35,4 +35,8 @@ class Status:
 
     @classmethod
     def choices(cls):
-        return [(choice, choice.lower()) for choice in cls.choice_names]
+        return [(choice.lower(), choice) for choice in cls.choice_names]
+
+    @classmethod
+    def default(cls):
+        return cls.choices()[0][0]

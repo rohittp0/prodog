@@ -17,7 +17,7 @@ class Document(models.Model):
 class MaintenanceRequest(models.Model):
     request_type = models.CharField(max_length=RequestType.length(), choices=RequestType.choices())
     description = models.TextField()
-    status = models.CharField(max_length=Status.length(), choices=Status.choices())
+    status = models.CharField(max_length=Status.length(), choices=Status.choices(), default=Status.default())
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
